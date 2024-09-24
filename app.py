@@ -28,6 +28,10 @@ import time
 from pinecone import Pinecone, ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
+import warnings
+
+# Suppress specific warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 load_dotenv()   
 
 app = FastAPI()
