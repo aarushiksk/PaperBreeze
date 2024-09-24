@@ -2,14 +2,22 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chatbot</title>
 </head>
 <body>
     <h1>Chatbot</h1>
-    <form action="/chatbot" method="post" enctype="multipart/form-data">
-        <label for="query">Enter Query</label>
-        <input type="text" id="query_input" name="query" required>
-        <button type="submit">Ask</button>
+    <!-- Form for submitting a query -->
+    <form action="/answer" method="post">
+        <label for="query">Enter your query:</label>
+        <input type="text" id="query" name="query" required>
+        <button type="submit">Submit</button>
     </form>
+    
+    <!-- Display the response if available -->
+    {% if response %}
+        <h2>Response:</h2>
+        <p>{{ response }}</p>
+    {% endif %}
 </body>
 </html>

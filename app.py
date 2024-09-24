@@ -1,10 +1,13 @@
-from fastapi import FastAPI, UploadFile, File,Request
+from fastapi import FastAPI, UploadFile, File,Request,Form
 from fastapi.responses import HTMLResponse,RedirectResponse
 from langgraph.graph import StateGraph, START, END
 from sentence_transformers import SentenceTransformer
 from typing_extensions import TypedDict, Optional
 from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_experimental.text_splitter import SemanticChunker
+from groq import Groq
+
+
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import re
@@ -25,12 +28,18 @@ import time
 from pinecone import Pinecone, ServerlessSpec
 from langchain_pinecone import PineconeVectorStore
 from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
-
+load_dotenv()   
 
 app = FastAPI()
 
+client = Groq(
+    api_key=os.environ.get("GROQ_API_KEY"),
+)
+
+
 pinecone_api_key = os.environ.get("PINECONE_API_KEY")
-pc = Pinecone(api_key=pinecone_api_key)
+environment=os.environ.get("PINECONE_ENVIRONMENT")
+pc = Pinecone(api_key=pinecone_api_key, environment=environment)
 index_name = "langchain-test-index" 
 
 existing_indexes = [index_info["name"] for index_info in pc.list_indexes()]
@@ -51,13 +60,7 @@ index = pc.Index(index_name)
 
 
 
-
-
-load_dotenv()   
-
-
 embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
-
 
 
 
@@ -80,8 +83,8 @@ llm = ChatGroq(
 )
 
 def update_text(state: State):
-    state["text"]=state['text']
-    return {'text': state['text']}
+    text=state["text"]
+    return {'text': text}
 
 def clean_text(state: State):
     text=state['text']
@@ -143,16 +146,25 @@ def sentence_chunks_to_semantic_chunks(state: State):
 def semantic_chunks_to_embeddings(state: State):
     documents=state['chunks']
     vectors_list = []  # List of document embeddings to upsert
-    j=0
-    for i in range(len(documents)):
-        embedding=embeddings.encode(documents[i]).tolist()
-        vectors_list.append({"id": str(j), "values": embedding})
-        j+=1
-    print('\n\n\n')
-    print("<=------------------------------------------------------------------------------------------------------=>")
-    print(len(vectors_list))
+    metadata_list = []  # List to store document metadata (ID and content)
+    
+    for i, document in enumerate(documents):
+        embedding = embeddings.encode(document).tolist()  # Convert embedding to list for Pinecone
+        doc_id = f"doc_{i}"  # Create a unique ID for each document
+
+        # Upsert the vector into Pinecone with metadata
+        vectors_list.append({
+            "id": doc_id,
+            "values": embedding,
+            "metadata": {"text": document}  # Store the document's text as metadata
+        })
+    
+    # Upsert vectors to Pinecone
     index.upsert(vectors=vectors_list)
+    
+    state['embeddings'] = vectors_list  # Store the embeddings in the state for future use
     return {'embeddings': vectors_list}
+
 
 
 
@@ -173,14 +185,72 @@ graph_app = graph_builder.compile()
 
 
 
+
+class State2(TypedDict):
+    query: Optional[str] = None
+    response: Optional[str] = None
+    
+graph_builder2 = StateGraph(State2)
+    
+def get_response(state:State2):
+    query_text = state['query']
+    # Convert the query text to embeddings
+    query_embedding = embeddings.encode(query_text).tolist()
+    
+    # Query Pinecone for similar embeddings
+    results = index.query(
+        vector=query_embedding,
+        top_k=1,  # Number of results to return
+        include_metadata=True  # Retrieve the associated metadata (e.g., text)
+    )
+    
+    # Extract the top responses (e.g., document text)
+    response_texts = [result['metadata']['text'] for result in results['matches']]
+    
+    # Set the response in the state
+    state['response'] = response_texts
+    chat_completion = client.chat.completions.create(
+    #
+    # Required parameters
+    #
+    messages=[
+        {
+            "role": "system",
+            "content": "you are a helpful research paper assistant, who simplifies things for user"
+        },
+        {
+            "role": "user",
+            "content":query_text+"  "+"response from external source"+" "+response_texts[0],
+        }
+    ],
+    model="llama3-8b-8192",
+    temperature=0.5,
+    max_tokens=1024,
+    top_p=1,
+    stop=None,
+    stream=False,
+)
+
+# Print the completion returned by the LLM.
+    resp=chat_completion.choices[0].message.content
+    return {'response': resp}
+
+
+graph_builder2.add_node("get_response", get_response)
+graph_builder2.add_edge(START, "get_response")
+graph_builder2.add_edge("get_response", END)
+graph_app2 = graph_builder2.compile()
+
     
 @app.get("/", response_class=HTMLResponse)
-async def get_form(request: Request):
+def get_form(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 
+
+
 @app.post("/upload", response_class=HTMLResponse)
-async def upload(request: Request, file: UploadFile = File(...)):
+def upload(request: Request, file: UploadFile = File(...)):
     # Extract text from the uploaded PDF
     reader = PdfReader(file.file)
     text = ""
@@ -190,16 +260,28 @@ async def upload(request: Request, file: UploadFile = File(...)):
     # Initial state with the extracted text
     initial_state = {"text": text, "chunks": None, "embeddings": None, "query": None, "response": None}
     
-    # Invoke the StateGraph with the initial state
-
-    
-    # Display a message after all operations are performed
+    # Process the text using the graph
     result = graph_app.invoke(initial_state)
-    if(result):
-        
-        return RedirectResponse(url="/chatbot")
-
-
-@app.post("/chatbot",response_class=HTMLResponse)
-async def result(request: Request):
+    
+    # Render the chatbot page after processing
     return templates.TemplateResponse("chatbot.html", {"request": request})
+
+
+@app.get("/chatbot", response_class=HTMLResponse)
+def get_chatbot(request: Request):
+    
+    # This will render the chatbot page without any data initially
+    return templates.TemplateResponse("chatbot.html", {"request": request})
+
+
+@app.post("/answer", response_class=HTMLResponse)
+def handle_query(request: Request, query: str = Form(...)):
+    # Handle the user's query by invoking the second state graph
+    state = {"query": query, "response": None}
+    result = graph_app2.invoke(state)
+    
+    # Return the chatbot template with the response data
+    return templates.TemplateResponse("chatbot.html", {"request": request, "response": result['response']})
+
+   
+
