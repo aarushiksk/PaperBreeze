@@ -4,7 +4,7 @@ from langgraph.graph import StateGraph, START, END
 from sentence_transformers import SentenceTransformer
 from typing_extensions import TypedDict, Optional
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_experimental.text_splitter import SemanticChunker
+
 import re
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
@@ -12,7 +12,7 @@ import os
 from PyPDF2 import PdfReader
 from fastapi.templating import Jinja2Templates
 import numpy as np
-from sklearn.metrics.pairwise import cosine_similarity
+
 
 from tokenizers import Tokenizer
 
@@ -101,7 +101,7 @@ def paragraph_to_sentences(state: State):
 def sentence_chunks_to_semantic_chunks(state: State):
     text_splitter = RecursiveCharacterTextSplitter(
     chunk_size=400,
-    chunk_overlap=0
+    chunk_overlap=100
 )
 
     text=state['text']
@@ -128,15 +128,14 @@ def sentence_chunks_to_semantic_chunks(state: State):
     print("<=------------------------------------------------------------------------------------------------------=>")
     
 
-    return {'chunks': len(data)}
+    return {'chunks': doc}
 
 def semantic_chunks_to_embeddings(state: State):
     documents=state['chunks']
     vectors_list = []  # List of document embeddings to upsert
     j=0
-    for i in len(documents):
-        embedding=embeddings.encode(documents[i]).tolist()[0]
-        print(embedding)
+    for i in range(len(documents)):
+        embedding=embeddings.encode(documents[i]).tolist()
         vectors_list.append({"id": str(j), "values": embedding})
         j+=1
     print('\n\n\n')
@@ -182,4 +181,3 @@ async def upload(request: Request, file: UploadFile = File(...)):
     # Display a message after all operations are performed
     result = graph_app.invoke(initial_state)
     return templates.TemplateResponse("index.html", {"request": request, "result": result})
-
