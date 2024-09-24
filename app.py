@@ -1,10 +1,12 @@
 from fastapi import FastAPI, UploadFile, File,Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse,RedirectResponse
 from langgraph.graph import StateGraph, START, END
 from sentence_transformers import SentenceTransformer
 from typing_extensions import TypedDict, Optional
 from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_experimental.text_splitter import SemanticChunker
 
+from langchain_community.embeddings import HuggingFaceEmbeddings
 import re
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
@@ -49,11 +51,13 @@ index = pc.Index(index_name)
 
 
 
+
+
 load_dotenv()   
 
 
 embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
-embed_model = FastEmbedEmbeddings(model_name="BAAI/bge-base-en-v1.5")
+
 
 
 
@@ -99,36 +103,42 @@ def paragraph_to_sentences(state: State):
     return {'chunks': sentences}
     
 def sentence_chunks_to_semantic_chunks(state: State):
-    text_splitter = RecursiveCharacterTextSplitter(
-    chunk_size=400,
-    chunk_overlap=100
-)
+#     text_splitter = RecursiveCharacterTextSplitter(
+#     chunk_size=400,
+#     chunk_overlap=100
+# )
 
-    text=state['text']
-    print('\n\n\n')
+#     text=state['text']
+#     print('\n\n\n')
+#     print("<=------------------------------------------------------------------------------------------------------=>")
+    
+#     print("Length",len(text))
+    
+#     data = text_splitter.create_documents([text])
+#     print(data)
+    
+#     doc =[]
+#     for d in data:
+#         d = d.page_content
+#         doc.append(d)
+
+
+    
+#     print("docs",len(doc))
+    
+#     print("Docs",doc)
+    
+#     print('\n\n\n')
+#     print("<=------------------------------------------------------------------------------------------------------=>")
+    hf_embeddings = HuggingFaceEmbeddings()
+    text_splitter = SemanticChunker(hf_embeddings)
+    docs = text_splitter.create_documents([state['text']])
+   
+    text_contents = [doc.page_content for doc in docs]
+    print('\n\n\n\n')
     print("<=------------------------------------------------------------------------------------------------------=>")
-    
-    print("Length",len(text))
-    
-    data = text_splitter.create_documents([text])
-    print(data)
-    
-    doc =[]
-    for d in data:
-        d = d.page_content
-        doc.append(d)
-
-
-    
-    print("docs",len(doc))
-    
-    print("Docs",doc)
-    
-    print('\n\n\n')
-    print("<=------------------------------------------------------------------------------------------------------=>")
-    
-
-    return {'chunks': doc}
+    print(text_contents)
+    return {'chunks': text_contents}
 
 def semantic_chunks_to_embeddings(state: State):
     documents=state['chunks']
@@ -145,6 +155,7 @@ def semantic_chunks_to_embeddings(state: State):
     return {'embeddings': vectors_list}
 
 
+
 graph_builder.add_node("update_text",update_text )
 graph_builder.add_node("clean_text", clean_text)
 graph_builder.add_node("paragraph_to_sentences", paragraph_to_sentences)
@@ -159,6 +170,10 @@ graph_builder.add_edge("semantic_chunks_to_embeddings", END)
 
 
 graph_app = graph_builder.compile()
+
+
+
+    
 @app.get("/", response_class=HTMLResponse)
 async def get_form(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -180,4 +195,11 @@ async def upload(request: Request, file: UploadFile = File(...)):
     
     # Display a message after all operations are performed
     result = graph_app.invoke(initial_state)
-    return templates.TemplateResponse("index.html", {"request": request, "result": result})
+    if(result):
+        
+        return RedirectResponse(url="/chatbot")
+
+
+@app.post("/chatbot",response_class=HTMLResponse)
+async def result(request: Request):
+    return templates.TemplateResponse("chatbot.html", {"request": request})
