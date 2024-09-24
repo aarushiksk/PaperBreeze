@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Upload PDF</title>
+</head>
+<body>
+    <h1>Upload PDF Document</h1>
+    <form action="/upload" method="post" enctype="multipart/form-data">
+        <label for="file_input">Upload your PDF:</label>
+        <input type="file" id="file_input" name="file" accept="application/pdf" required>
+        <button type="submit">Upload</button>
+    </form>
+    {% if result %}
+        <h2>Assistant:</h2>
+        <p>{{ result }}</p>
+    {% endif %}
+</body>
+</html>
