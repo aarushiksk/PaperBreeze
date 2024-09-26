@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Upload PDF</title>
+    <link rel="stylesheet" href="./static/mainpage.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Welcome to Paper Breeze 👋</h1>
+        <form action="/upload" method="post" enctype="multipart/form-data" class="upload-form">
+            <label for="file_input" class="label-text">Upload your PDF:</label>
+            <input type="file" id="file_input" name="file" accept="application/pdf" required>
+            <button type="submit">Upload</button>
+        </form>
+    </div>
+</body>
+</html>

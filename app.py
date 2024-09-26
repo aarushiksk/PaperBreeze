@@ -1,13 +1,11 @@
 from fastapi import FastAPI, UploadFile, File,Request,Form
+from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse,RedirectResponse
 from langgraph.graph import StateGraph, START, END
 from sentence_transformers import SentenceTransformer
 from typing_extensions import TypedDict, Optional
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_experimental.text_splitter import SemanticChunker
 from groq import Groq
-
-
+from langchain_experimental.text_splitter import SemanticChunker
 
 from langchain_community.embeddings import HuggingFaceEmbeddings
 import re
@@ -18,8 +16,6 @@ from PyPDF2 import PdfReader
 from fastapi.templating import Jinja2Templates
 import numpy as np
 
-
-from tokenizers import Tokenizer
 
 
 
@@ -35,6 +31,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 load_dotenv()   
 
 app = FastAPI()
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 client = Groq(
     api_key=os.environ.get("GROQ_API_KEY"),
@@ -70,6 +67,7 @@ embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
 
 templates = Jinja2Templates(directory="templates/")
 
+
 class State(TypedDict):
     
     text: Optional[str] = None
@@ -77,8 +75,9 @@ class State(TypedDict):
     embeddings: Optional[np.ndarray] = None
     query: Optional[str] = None
     response: Optional[str] = None
-
+    
 graph_builder = StateGraph(State)
+
 
 llm = ChatGroq(
     temperature=0,
@@ -239,7 +238,6 @@ def get_response(state:State2):
     resp=chat_completion.choices[0].message.content
     return {'response': resp}
 
-
 graph_builder2.add_node("get_response", get_response)
 graph_builder2.add_edge(START, "get_response")
 graph_builder2.add_edge("get_response", END)
@@ -248,10 +246,10 @@ graph_app2 = graph_builder2.compile()
     
 @app.get("/", response_class=HTMLResponse)
 def get_form(request: Request):
-    return templates.TemplateResponse("index.html", {"request": request})
+    return templates.TemplateResponse("index (1).html", {"request": request})
 
 
-
+ 
 
 @app.post("/upload", response_class=HTMLResponse)
 def upload(request: Request, file: UploadFile = File(...)):
@@ -268,15 +266,14 @@ def upload(request: Request, file: UploadFile = File(...)):
     result = graph_app.invoke(initial_state)
     
     # Render the chatbot page after processing
-    return templates.TemplateResponse("chatbot.html", {"request": request})
+    return RedirectResponse(url='/chatbot')
 
 
-@app.get("/chatbot", response_class=HTMLResponse)
+@app.post("/chatbot", response_class=HTMLResponse)
 def get_chatbot(request: Request):
     
     # This will render the chatbot page without any data initially
     return templates.TemplateResponse("chatbot.html", {"request": request})
-
 
 @app.post("/answer", response_class=HTMLResponse)
 def handle_query(request: Request, query: str = Form(...)):
@@ -285,7 +282,7 @@ def handle_query(request: Request, query: str = Form(...)):
     result = graph_app2.invoke(state)
     
     # Return the chatbot template with the response data
-    return templates.TemplateResponse("chatbot.html", {"request": request, "response": result['response']})
+    return templates.TemplateResponse("chatbot.html", {"request": request, "query":query,"response": result['response']})
 
    
 

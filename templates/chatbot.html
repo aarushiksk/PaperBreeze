@@ -1,23 +1,74 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chatbot</title>
-</head>
-<body>
-    <h1>Chatbot</h1>
-    <!-- Form for submitting a query -->
-    <form action="/answer" method="post">
-        <label for="query">Enter your query:</label>
-        <input type="text" id="query" name="query" required>
-        <button type="submit">Submit</button>
-    </form>
-    
-    <!-- Display the response if available -->
-    {% if response %}
-        <h2>Response:</h2>
-        <p>{{ response }}</p>
-    {% endif %}
-</body>
-</html>
+{% extends 'base.html'%}
+
+{% block head %}
+<meta charset="UTF-8">
+<title>Paper Breeze</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/5.0.0/normalize.min.css">
+<link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.9.0/css/all.min.css'>
+<link rel="stylesheet" href="./static/style.css">
+{% endblock %}
+
+{% block body %}
+<div class="center">
+    <div class="chat">
+        <div class="contact bar">
+            <div class="pic stark"></div>
+            <div class="name">
+                Paper Breeze
+            </div>
+        </div>
+        <div class="messages" id="chat">
+            <div class="time">
+                Status: Active
+            </div>
+
+            <!-- Display user input and assistant response -->
+            {% if query and response %}
+            <div class="message-container">
+                <div class="message stark right-message">
+                    <strong>User:</strong> {{ query }}
+                </div>
+                <div class="message parker left-message">
+                    <strong>Assistant:</strong> {{ response }}
+                </div>
+            </div>
+            {% else %}
+            <div class="message stark">
+                Enter what do you want to ask?
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Form for user input -->
+        <form action="/answer" class="form" method="POST">
+            <div class="input">
+                <input placeholder="Type your message here!" type="text" id="ask" name="query" required>
+                <button type="submit" class="fas fa-search"></button>
+            </div>
+        </form>
+    </div>
+</div>
+</div>
+
+<!-- End Chat button with inline CSS -->
+<button style="
+    position: fixed; 
+    bottom: 20px; 
+    right: 20px; 
+    background-color: #ff4d4d; 
+    color: white; 
+    border: none; 
+    border-radius: 5px; 
+    padding: 10px 20px; 
+    font-size: 16px; 
+    cursor: pointer; 
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); 
+    transition: background-color 0.3s ease;" 
+    onclick="endChat()">End Chat
+</button>
+
+<!-- partial -->
+<script src='https://cdnjs.cloudflare.com/ajax/libs/jquery/3.4.1/jquery.min.js'></script>
+<script src="./static/script.js"></script>
+
+{% endblock %}
