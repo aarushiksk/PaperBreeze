@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>End Chat</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            padding: 50px;
+        }
+        .message {
+            margin-top: 20px;
+            font-size: 18px;
+            color: #333;
+        }
+    </style>
+
+    <!-- Redirect to /upload after 3 seconds -->
+
+    <meta http-equiv="refresh" content="3;url=/">
+</head>
+<body>
+    <h1>Chat Ended</h1>
+    <div class="message">
+        {{ response }}
+    </div>
+    <p>You will be redirected shortly...</p>
+</body>
+</html>
