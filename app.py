@@ -1,211 +1,79 @@
+from graph import create_graph
+from langgraph.graph import StateGraph, START,END
+from typing_extensions import Optional, TypedDict
+from sentence_transformers import SentenceTransformer
 from fastapi import FastAPI, UploadFile, File,Request,Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse,RedirectResponse
-from langgraph.graph import StateGraph, START, END
-from sentence_transformers import SentenceTransformer
-from typing_extensions import TypedDict, Optional
+from typing import Literal
+from vector_store import get_index,Delete_Index
 from groq import Groq
-from langchain_experimental.text_splitter import SemanticChunker
-
-from langchain_community.embeddings import HuggingFaceEmbeddings
-import re
-from dotenv import load_dotenv
-from langchain_groq import ChatGroq
 import os
+from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from fastapi.templating import Jinja2Templates
-import numpy as np
+from guardrails.hub import ProfanityFree, ToxicLanguage
+from guardrails import Guard
 
 
 
-
-import os
-import time
-from pinecone import Pinecone, ServerlessSpec
-from langchain_pinecone import PineconeVectorStore
-from langchain_community.embeddings.fastembed import FastEmbedEmbeddings
-import warnings
-
-# Suppress specific warnings
-warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
-load_dotenv()   
-
-app = FastAPI()
+app= FastAPI()
 app.mount("/static", StaticFiles(directory="static"), name="static")
+templates = Jinja2Templates(directory="templates")
 
+load_dotenv()
+embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
+index=get_index()
 client = Groq(
     api_key=os.environ.get("GROQ_API_KEY"),
 )
 
 
-pinecone_api_key = os.environ.get("PINECONE_API_KEY")
-environment=os.environ.get("PINECONE_ENVIRONMENT")
-pc = Pinecone(api_key=pinecone_api_key, environment=environment)
-index_name = "langchain-test-index" 
-
-existing_indexes = [index_info["name"] for index_info in pc.list_indexes()]
-
-if index_name not in existing_indexes:
-    pc.create_index(
-        name=index_name,
-        dimension=1024,
-        metric="cosine",
-        spec=ServerlessSpec(cloud="aws", region="us-east-1"),
-    )
-    while not pc.describe_index(index_name).status["ready"]:
-        time.sleep(1)
-
-index = pc.Index(index_name)
-# print(index.describe_index_stats())
 
 
-
-
-embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
-
-
-
-templates = Jinja2Templates(directory="templates/")
-
-
-class State(TypedDict):
-    
-    text: Optional[str] = None
-    chunks: Optional[list] = None
-    embeddings: Optional[np.ndarray] = None
+class UserInput(TypedDict):
     query: Optional[str] = None
-    response: Optional[str] = None
+    response: Optional[str] = None  
     
-graph_builder = StateGraph(State)
+graph_builder2 = StateGraph(UserInput)
 
 
-llm = ChatGroq(
-    temperature=0,
-    model_name="Llama3-8b-8192",
-    api_key=os.getenv("GROQ_API_KEY"),
-)
+def input_query(state: UserInput):
+    state['query'] = state['query']
+    return {'query': state['query']}
 
-def update_text(state: State):
-    text=state["text"]
-    return {'text': text}
+def check(state: UserInput) -> Literal["guard_message", "get_response"]:
+    query_text=state['query']
+    guard = Guard().use_many(ToxicLanguage(threshold=0.5, validation_method="sentence"),  
+                             ProfanityFree())
 
-def clean_text(state: State):
-    text=state['text']
-    cleaned_text = text.replace('\xa0', ' ')  # Replace non-breaking space
-    cleaned_text = re.sub(r'\s+', ' ', cleaned_text)  # Replace multiple spaces/newlines/tabs with a single space
-    cleaned_text = cleaned_text.strip()
-    state['text']=cleaned_text
-    return {'text': state['text']}
-
-
-def paragraph_to_sentences(state: State):
-    text=state['text']
-    sentences=re.split(r'(?<=[.])\s+', text)
-    state['chunks']=sentences
-    print("\n\n\n\n\n")
-    print("<=------------------------------------------------------------------------------------------------------=>")
-    print("Sentences:", len(sentences))
+    validation=guard.validate(query_text)
+    # print(validation)
+     
+    validation_passed=validation.validation_passed
+     
+    if validation_passed:
+         return "get_response"
+    else:
+        return "guard_message"
     
-    return {'chunks': sentences}
+ 
+def guard_message(state: UserInput):
+    state['response'] = "Sorry i can't answer that right now, please rephrase your prompt"   
     
-def sentence_chunks_to_semantic_chunks(state: State):
-#     text_splitter = RecursiveCharacterTextSplitter(
-#     chunk_size=400,
-#     chunk_overlap=100
-# )
+    return {'response': state['response']}
 
-#     text=state['text']
-#     print('\n\n\n')
-#     print("<=------------------------------------------------------------------------------------------------------=>")
-    
-#     print("Length",len(text))
-    
-#     data = text_splitter.create_documents([text])
-#     print(data)
-    
-#     doc =[]
-#     for d in data:
-#         d = d.page_content
-#         doc.append(d)
-
-
-    
-#     print("docs",len(doc))
-    
-#     print("Docs",doc)
-    
-#     print('\n\n\n')
-#     print("<=------------------------------------------------------------------------------------------------------=>")
-    hf_embeddings = HuggingFaceEmbeddings()
-    text_splitter = SemanticChunker(hf_embeddings)
-    docs = text_splitter.create_documents([state['text']])
-   
-    text_contents = [doc.page_content for doc in docs]
-    print('\n\n\n\n')
-    print("<=------------------------------------------------------------------------------------------------------=>")
-    print(text_contents)
-    return {'chunks': text_contents}
-
-def semantic_chunks_to_embeddings(state: State):
-    documents=state['chunks']
-    vectors_list = []  # List of document embeddings to upsert
-    metadata_list = []  # List to store document metadata (ID and content)
-    
-    for i, document in enumerate(documents):
-        embedding = embeddings.encode(document).tolist()  # Convert embedding to list for Pinecone
-        doc_id = f"doc_{i}"  # Create a unique ID for each document
-
-        # Upsert the vector into Pinecone with metadata
-        vectors_list.append({
-            "id": doc_id,
-            "values": embedding,
-            "metadata": {"text": document}  # Store the document's text as metadata
-        })
-    
-    # Upsert vectors to Pinecone
-    index.upsert(vectors=vectors_list)
-    
-    state['embeddings'] = vectors_list  # Store the embeddings in the state for future use
-    return {'embeddings': vectors_list}
-
-
-
-
-graph_builder.add_node("update_text",update_text )
-graph_builder.add_node("clean_text", clean_text)
-graph_builder.add_node("paragraph_to_sentences", paragraph_to_sentences)
-graph_builder.add_node("sentence_chunks_to_semantic_chunks", sentence_chunks_to_semantic_chunks)
-graph_builder.add_node("semantic_chunks_to_embeddings", semantic_chunks_to_embeddings)
-graph_builder.add_edge(START, "update_text")
-graph_builder.add_edge("update_text", "clean_text")
-graph_builder.add_edge("clean_text", "paragraph_to_sentences")
-graph_builder.add_edge("paragraph_to_sentences", "sentence_chunks_to_semantic_chunks")
-graph_builder.add_edge("sentence_chunks_to_semantic_chunks", "semantic_chunks_to_embeddings")
-graph_builder.add_edge("semantic_chunks_to_embeddings", END)
-
-
-graph_app = graph_builder.compile()
-
-
-
-
-class State2(TypedDict):
-    query: Optional[str] = None
-    response: Optional[str] = None
-    
-graph_builder2 = StateGraph(State2)
-    
-def get_response(state:State2):
+def get_response(state: UserInput):
     query_text = state['query']
-    # Convert the query text to embeddings
     query_embedding = embeddings.encode(query_text).tolist()
     
-    # Query Pinecone for similar embeddings
     results = index.query(
         vector=query_embedding,
-        top_k=1,  # Number of results to return
-        include_metadata=True  # Retrieve the associated metadata (e.g., text)
+        top_k=1,  
+        include_metadata=True  
     )
+    
+    
     
     # Extract the top responses (e.g., document text)
     response_texts = [result['metadata']['text'] for result in results['matches']]
@@ -219,7 +87,10 @@ def get_response(state:State2):
     messages=[
         {
             "role": "system",
-            "content": "you are a helpful research paper assistant, who simplifies things for user"
+            "content": '''You are a helpful research paper assistant, who simplifies things for user.You must understand the user and precisely answer only what has been asked, no extra information is to be included by you.
+             If user greets, just greet back even if you are given response from external source.
+             If user asks a question, answer it.
+            '''
         },
         {
             "role": "user",
@@ -234,22 +105,35 @@ def get_response(state:State2):
     stream=False,
 )
 
-# Print the completion returned by the LLM.
+
     resp=chat_completion.choices[0].message.content
     return {'response': resp}
 
-graph_builder2.add_node("get_response", get_response)
-graph_builder2.add_edge(START, "get_response")
-graph_builder2.add_edge("get_response", END)
-graph_app2 = graph_builder2.compile()
 
-    
+def create_conversation_graph():
+     graph_builder2.add_node("input_query", input_query)
+     graph_builder2.add_node("guard_message", guard_message)
+     graph_builder2.add_node("get_response", get_response)
+     graph_builder2.add_edge(START, "input_query")
+     graph_builder2.add_conditional_edges(
+     "input_query",
+      check,
+      {"guard_message": "guard_message",
+       "get_response": "get_response",
+       },
+)
+     return graph_builder2.compile()
+
+
+graph_app2=create_conversation_graph()
+
+
 @app.get("/", response_class=HTMLResponse)
 def get_form(request: Request):
     return templates.TemplateResponse("index (1).html", {"request": request})
 
 
- 
+
 
 @app.post("/upload", response_class=HTMLResponse)
 def upload(request: Request, file: UploadFile = File(...)):
@@ -258,11 +142,11 @@ def upload(request: Request, file: UploadFile = File(...)):
     text = ""
     for page in reader.pages:
         text += page.extract_text()
-    
-    # Initial state with the extracted text
+
     initial_state = {"text": text, "chunks": None, "embeddings": None, "query": None, "response": None}
     
     # Process the text using the graph
+    graph_app=create_graph()
     result = graph_app.invoke(initial_state)
     
     # Render the chatbot page after processing
@@ -284,5 +168,12 @@ def handle_query(request: Request, query: str = Form(...)):
     # Return the chatbot template with the response data
     return templates.TemplateResponse("chatbot.html", {"request": request, "query":query,"response": result['response']})
 
-   
 
+@app.post("/end",response_class=HTMLResponse)
+def handle_end(request: Request, end: str = Form(...)):
+    response=Delete_Index()
+    
+    return templates.TemplateResponse("end.html", {"request": request, "response": response})
+    
+
+   

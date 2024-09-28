@@ -7,16 +7,16 @@ from pinecone import Pinecone, ServerlessSpec
 import os
 import time
 import warnings
-warnings.filterwarnings("ignore")
+warnings.filterwarnings("ignore", message="Field .* has conflict with protected namespace .*")
 
-embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
+embeddings = None
+# print("index created")
 index=initialize_pinecone()
-print("index created")
-
 
 
 
 def update_text(state):
+    global embeddings
     text=state["text"]
     cleaned_text = text.replace('\xa0', ' ')  
     return {'text': cleaned_text}
@@ -28,8 +28,8 @@ def clean_text(state):
     cleaned_text = re.sub(r'\s+', ' ', cleaned_text)  
     cleaned_text = cleaned_text.strip()
     state['text']=cleaned_text
-    print('\n\n\n\n\n')
-    print("<=------------------------------------------------------------------------------------------------------=>")
+    # print('\n\n\n\n\n')
+    # print("<=------------------------------------------------------------------------------------------------------=>")
     return {'text': state['text']}
 
 
@@ -40,9 +40,9 @@ def paragraph_to_sentences(state):
     text=state['text']
     sentences=re.split(r'(?<=[.])\s+', text)
     state['chunks']=sentences
-    print("\n\n\n\n\n")
-    print("<=------------------------------------------------------------------------------------------------------=>")
-    print("Sentences:", len(sentences))
+    # print("\n\n\n\n\n")
+    # print("<=------------------------------------------------------------------------------------------------------=>")
+    # print("Sentences:", len(sentences))
     
     return {'chunks': sentences}
 
@@ -54,14 +54,15 @@ def sentence_chunks_to_semantic_chunks(state):
     docs = text_splitter.create_documents([state['text']])
    
     text_contents = [doc.page_content for doc in docs]
-    print('\n\n\n\n')
-    print("<=------------------------------------------------------------------------------------------------------=>")
-    print(text_contents)
+    # print('\n\n\n\n')
+    # print("<=------------------------------------------------------------------------------------------------------=>")
+    # print(text_contents)
     return {'chunks': text_contents}
 
 
 
 def semantic_chunks_to_embeddings(state):
+    embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
     documents=state['chunks']
     vectors_list = []  # List of document embeddings to upsert
     
