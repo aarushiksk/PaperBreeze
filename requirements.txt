@@ -1,12 +1,10 @@
 langgraph
 fastapi
-langserve[all]
 uvicorn
 groq
 langchain
 langchain-community
 python-dotenv
-langchain-groq
 python-multipart
 PyPDF2
 nltk
@@ -17,7 +15,6 @@ pinecone-notebooks
 pinecone
 langchain-huggingface
 semantic-split
-fastembed
 langchain_experimental
 guardrails-ai
 gunicorn==19.7.1
