@@ -14,8 +14,10 @@ jinja2
 sentence-transformers
 langchain-pinecone
 pinecone-notebooks
+pinecone
 langchain-huggingface
 semantic-split
 fastembed
 langchain_experimental
 guardrails-ai
+gunicorn==19.7.1
