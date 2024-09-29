@@ -13,8 +13,8 @@ import os
 from dotenv import load_dotenv
 from PyPDF2 import PdfReader
 from fastapi.templating import Jinja2Templates
-from guardrails.hub import ProfanityFree, ToxicLanguage
-from guardrails import Guard
+# from guardrails.hub import ProfanityFree, ToxicLanguage
+# from guardrails import Guard
 
 
 
