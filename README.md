@@ -9,5 +9,5 @@
 - Guardrails-AI act as input/output guards to ensure inputs/outputs are free of inappropriate, sexual or bias content.
 
 ##### Screenshots:
-<image src='guardrails.png' width='100px' height='100px'>
+<image src='guardrails.png'>
 <image src='index.png'>
