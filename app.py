@@ -170,7 +170,7 @@ def upload(request: Request, file: UploadFile = File(...)):
     result = graph_app.invoke(initial_state)
     
     # Render the chatbot page after processing
-    return RedirectResponse(url='/chatbot')
+    return templates.TemplateResponse("chatbot.html", {"request": request})
 
 
 @app.post("/chatbot", response_class=HTMLResponse)
