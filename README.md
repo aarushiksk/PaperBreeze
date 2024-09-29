@@ -1,7 +1,13 @@
-### About PaperBreeze⚡ (Alpha)
+### About PaperBreeze⚡
 
-##### RAG system with an Agentic Architecture built over Langgraph, FastAPI, PineCone Vector database to simplify research papers for enthusiasts.
+#### RAG system with an Agentic Architecture built over Langgraph, FastAPI, PineCone Vector database, Guardrails-AI to simplify research papers for enthusiasts.
 
-#### Features:
-- Works efficiently over upto 10 page document (tested).
-- As soon as user presses "END" on the front end, the vector-store indexs and the documents will be removed saving space and cost.
+##### Features:🌟
+- Works efficiently over upto 10 page document.
+- If user enters "END CHAT" on the front end, the vector-store indexs and the documents will be removed saving space and cost.
+- Works only on the text part of the PDF for now.
+- Guardrails-AI act as input/output guards to ensure inputs/outputs are free of inappropriate, sexual or bias content.
+
+##### Screenshots:
+<image src='guardrails.png'>
+<image src='index.png'>
