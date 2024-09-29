@@ -5,6 +5,7 @@ from sentence_transformers import SentenceTransformer
 from fastapi import FastAPI, UploadFile, File,Request,Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse,RedirectResponse
+from profanity_check import predict, predict_prob
 from typing import Literal
 from vector_store import get_index,Delete_Index
 from groq import Groq
@@ -44,22 +45,40 @@ def input_query(state: UserInput):
 
 def check(state: UserInput) -> Literal["guard_message", "get_response"]:
     query_text=state['query']
-    guard = Guard().use_many(ToxicLanguage(threshold=0.5, validation_method="sentence"),  
-                             ProfanityFree())
+    
+    # guard = Guard().use_many(ToxicLanguage(threshold=0.5, validation_method="sentence"),  
+    #                          ProfanityFree())
 
-    validation=guard.validate(query_text)
-    # print(validation)
+    # validation=guard.validate(query_text)
+    # # print(validation)
      
-    validation_passed=validation.validation_passed
+    # validation_passed=validation.validation_passed
      
-    if validation_passed:
-         return "get_response"
+    # if validation_passed:
+    #      return "get_response"
+    # else:
+    #     return "guard_message"
+    
+    arr=predict([query_text])
+    if(arr[0]==0):
+        return "get_response"
     else:
         return "guard_message"
     
  
 def guard_message(state: UserInput):
-    state['response'] = "Sorry i can't answer that right now, please rephrase your prompt"   
+    state['response'] = ''' MESSAGE FROM GUARD!!👮‍♂️🚨
+    
+    Your prompt contains inappropriate language!🤬
+    
+    This is a safe space, let's keep it clean!🧼
+    
+    Eeeeeshhh, humans are such savages!!🦖
+    
+    Rephrase your query and try again! 😇
+    
+    Guard Signing Off!👮‍♂️🚨
+    '''  
     
     return {'response': state['response']}
 
