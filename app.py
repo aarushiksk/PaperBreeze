@@ -1,11 +1,12 @@
 from graph import create_graph
 from langgraph.graph import StateGraph, START,END
 from typing_extensions import Optional, TypedDict
-from sentence_transformers import SentenceTransformer
+# from sentence_transformers import SentenceTransformer
 from fastapi import FastAPI, UploadFile, File,Request,Form
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse,RedirectResponse
-from profanity_check import predict, predict_prob
+from profanity_check import predict
+from get_embedding import enter_to_embed
 from typing import Literal
 from vector_store import get_index,Delete_Index
 from groq import Groq
@@ -23,7 +24,7 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
 load_dotenv()
-embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
+# embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
 index=get_index()
 client = Groq(
     api_key=os.environ.get("GROQ_API_KEY"),
@@ -84,7 +85,7 @@ def guard_message(state: UserInput):
 
 def get_response(state: UserInput):
     query_text = state['query']
-    query_embedding = embeddings.encode(query_text).tolist()
+    query_embedding = enter_to_embed(query_text)
     
     results = index.query(
         vector=query_embedding,

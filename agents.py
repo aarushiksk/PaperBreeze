@@ -4,6 +4,7 @@ from langchain_experimental.text_splitter import SemanticChunker
 from sentence_transformers import SentenceTransformer
 from vector_store import initialize_pinecone
 from pinecone import Pinecone, ServerlessSpec
+from get_embedding import enter_to_embed
 import os
 import time
 import warnings
@@ -62,12 +63,13 @@ def sentence_chunks_to_semantic_chunks(state):
 
 
 def semantic_chunks_to_embeddings(state):
-    embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
+    # embeddings = SentenceTransformer("BAAI/bge-large-en-v1.5")
+    
     documents=state['chunks']
     vectors_list = []  # List of document embeddings to upsert
     
     for i, document in enumerate(documents):
-        embedding = embeddings.encode(document).tolist()  # Convert embedding to list for Pinecone
+        embedding = enter_to_embed(document) # Convert embedding to list for Pinecone
         doc_id = f"doc_{i}"  # Create a unique ID for each document
 
         # Upsert the vector into Pinecone with metadata
