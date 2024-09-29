@@ -17,6 +17,6 @@ langchain-huggingface
 langchain_experimental
 alt-profanity-check
 huggingface_hub
-hypercorn
-# guardrails-ai
+# hypercorn
+guardrails-ai
 # openai>=1.30.1
