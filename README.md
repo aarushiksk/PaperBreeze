@@ -1,13 +1,30 @@
-### About PaperBreeze⚡
+# About PaperBreeze⚡
 
-#### RAG system with an Agentic Architecture built over Langgraph, FastAPI, PineCone Vector database, Guardrails-AI to simplify research papers for enthusiasts.
+## Overview
 
-##### Features:🌟
-- Works efficiently over upto 10 page document.
-- If user enters "END CHAT" on the front end, the vector-store indexs and the documents will be removed saving space and cost.
-- Works only on the text part of the PDF for now.
-- Guardrails-AI act as input/output guards to ensure inputs/outputs are free of inappropriate, sexual or bias content.
+**PaperBreeze** is a Retrieval-Augmented Generation (RAG) system with an agentic architecture designed to simplify research papers for enthusiasts. Built using **Langgraph**, **FastAPI**, **Pinecone** vector database, and **Guardrails-AI**, for this works only on the text part of the PDF.
 
-##### Screenshots:
+---
+
+### Features:🌟
+- **Efficient**: Processes documents of up to 10 pages.
+- **Space-Efficient**: Deletes vectors and documents when the user ends the session with `END CHAT`.
+- **Safe and Secure**: Utilizes **Guardrails-AI** to ensure all inputs and outputs are free from inappropriate, biased, or offensive content.
+
+---
+
+### Screenshots:
 <image src='guardrails.png'>
 <image src='index.png'>
+  
+---
+
+### Usage:
+
+Follow these steps to set up and run **PaperBreeze** locally:
+
+### 1. Clone the Repository
+```bash
+git clone <repository_url>
+cd PaperBreeze
+```
