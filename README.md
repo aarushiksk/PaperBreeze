@@ -28,3 +28,23 @@ Follow these steps to set up and run **PaperBreeze** locally:
 git clone <repository_url>
 cd PaperBreeze
 ```
+
+### 2. Create virutal environment
+```bash
+python -m venv venv
+venv\Scripts\activate
+```
+
+### 3. Create .env folder and paste your api keys
+```bash
+Get the following api keys
+- GROQ
+- PINECONE
+- PINECONE_ENVIRONMENT
+- HF_TOKEN
+```
+
+### 4. Navigate to app.py
+```bash
+Run uvicorn app:app --reload
+```
